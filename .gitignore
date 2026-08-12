@@ -1,0 +1,30 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyInstaller generated output/work files
+build/
+dist/
+*.toc
+*.pkg
+*.pyz
+xref-*.html
+warn-*.txt
+
+# EXE creation scratch/artifacts
+*.log
+*.manifest
+*.res
+*.pyd
+*.dll
+*.so
+*.dylib
+*.exe
+
+# Keep intentional project/tool executables tracked if explicitly added
+!orzip.exe
+
+# Local virtual environments
+.venv/
+venv/

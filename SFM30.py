@@ -46,6 +46,11 @@ def app_dir() -> Path:
     return Path(__file__).resolve().parent
 
 
+def bundled_dir() -> Path:
+    """Return the PyInstaller extraction folder, or the app folder when not bundled."""
+    return Path(getattr(sys, "_MEIPASS", app_dir())).resolve()
+
+
 @dataclass
 class ParsedLine:
     text: str
@@ -396,7 +401,7 @@ class SFMApp:
         if not self.current_dir.exists(): self.current_dir = Path(os.getcwd())
         self.confirm_all = BooleanVar(value=self.config.getboolean("settings", "confirm_all", fallback=True))
         self.limit_file_list = BooleanVar(value=self.config.getboolean("settings", "limit_file_list", fallback=True))
-        self.orzip_cmd = StringVar(value=self.config.get("settings", "orzip_cmd", fallback=self.default_orzip_cmd()))
+        self.orzip_cmd = StringVar(value=self.resolve_orzip_cmd(self.config.get("settings", "orzip_cmd", fallback="")))
         self.editor = StringVar(value=self.config.get("settings", "editor", fallback="notepad.exe"))
         self.build_ui()
         self.refresh()
@@ -417,11 +422,20 @@ class SFMApp:
         with CONFIG_FILE.open("w", encoding="utf-8") as f: self.config.write(f)
 
     def default_orzip_cmd(self) -> str:
-        for name in ("orzip.exe", "orzip"):
-            candidate = app_dir() / name
-            if candidate.exists():
-                return str(candidate)
+        for folder in (app_dir(), bundled_dir()):
+            for name in ("orzip.exe", "orzip"):
+                candidate = folder / name
+                if candidate.exists():
+                    return str(candidate)
         return shutil.which("orzip.exe") or shutil.which("orzip") or str(app_dir() / "orzip.exe")
+
+    def resolve_orzip_cmd(self, configured: str) -> str:
+        cmd = configured.strip()
+        if not cmd:
+            return self.default_orzip_cmd()
+        if Path(cmd).exists() or shutil.which(cmd):
+            return cmd
+        return self.default_orzip_cmd()
 
     def build_ui(self) -> None:
         top = Frame(self.root); top.pack(fill=X, padx=6, pady=4)
