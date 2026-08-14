@@ -1,12 +1,16 @@
-# MSTS Shape File Manager 3.0
+# Open Rails Shape File Manager 3.0
 
-MSTS Shape File Manager 3.0 is a Python/Tkinter continuation of the older MSTS Shape File Manager HTA utility. It replaces the obsolete HTA/ActiveX and FFEDITC_UNICODE workflow with a normal desktop UI and an ORZIP backend for Microsoft Train Simulator/Open Rails shape-file compression tasks.
+Open Rails Shape File Manager 3.0 is a Python/Tkinter continuation of the older SFM25 HTA utility. It replaces the obsolete HTA/ActiveX and FFEDITC_UNICODE workflow with a normal desktop UI and an ORZIP backend for Open Rails shape-file compression tasks.
 
 ## Contents
 
 - `SFM30.py` - the Python/Tkinter application.
 - `Run_SFM3.bat` - Windows launcher that starts the application from this folder.
 - `build_exe.bat` - Windows build script for creating `dist/SFM3.exe` with PyInstaller.
+- `build_manual.bat` - Windows build script for creating `docs/SFM3_Manual.pdf`.
+- `assets/SFM3.ico` - application/window icon used by the source app and packaged EXE.
+- `docs/SFM3_Manual.md` - source for the distribution kit user manual.
+- `tools/build_icon.py` - regenerates the PNG/ICO application icon artwork.
 - `orzip.exe` - ORZIP backend used for shape-file compression and uncompression when available/configured.
 - `LICENSE.md` - Creative Commons Attribution-ShareAlike 4.0 International licence definition for this project, unless a file states otherwise.
 
@@ -28,8 +32,9 @@ The packaged `SFM3.exe` does not require a separate Python installation. ORZIP i
    python SFM30.py
    ```
 
-3. Use the folder list and drive buttons to navigate to MSTS/Open Rails `.S` shape files.
-4. Double-click or right-click a shape file to view the available actions.
+3. Use the folder list and drive buttons to navigate to Open Rails `.S` shape files.
+4. Use Search Shape Files to filter the current folder by partial filename when needed.
+5. Double-click or right-click a shape file to view the available actions.
 
 ## Main features
 
@@ -50,9 +55,17 @@ Uncompressed shape files:
 - Edit texture modes.
 - Edit `.S` and `.SD` files with the configured Unicode editor.
 
+Navigation:
+
+- Up One Folder moves from the current directory to the folder above it.
+- Search Shape Files filters the current folder's `.S` file list by partial filename.
+- Include Subfolders is enabled by default; it extends a non-empty search below the current folder and shows each match's relative folder.
+- The Shape Files list includes a Folder column for search results and a left-side vertical scrollbar for long lists.
+- Clear removes the filter and shows the normal current-folder list again.
+
 ## Backups and caution
 
-Geometry-changing operations create backup files using the same suffixes used by SFM25:
+Geometry-changing operations create backup files using the same suffixes inherited from earlier Shape File Manager versions:
 
 - `.PreScale`
 - `.PreShift`
@@ -98,6 +111,18 @@ build_exe.bat
 ```
 
 The generated executable is written to `dist/SFM3.exe`.
+
+The build uses `assets/SFM3.ico` for the EXE and window icon.
+
+## Building the PDF manual
+
+The distribution kit manual source is `docs/SFM3_Manual.md`. Build the PDF with:
+
+```bat
+build_manual.bat
+```
+
+The generated PDF is written to `docs/SFM3_Manual.pdf`.
 
 ## Licence
 

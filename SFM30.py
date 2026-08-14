@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Shape File Manager 3.0.
 
-This is a Python/Tkinter continuation of the old MSTS Shape File Manager HTA
+This is a Python/Tkinter continuation of the old SFM25 HTA
 utility.  Version 3.0 replaces the obsolete HTA/ActiveX and FFEDITC_UNICODE
 conversion dependencies with a normal desktop UI and ORZIP backend.
 """
@@ -17,7 +17,7 @@ from pathlib import Path
 from tkinter import BOTH, END, LEFT, RIGHT, VERTICAL, X, Y, Button, Checkbutton, Entry, Frame, Label, LabelFrame, Listbox, Menu, StringVar, Tk, Toplevel, BooleanVar, messagebox, simpledialog, ttk
 from tkinter.scrolledtext import ScrolledText
 
-APP_NAME = "MSTS Shape File Manager"
+APP_NAME = "Open Rails Shape File Manager"
 APP_VERSION = "3.0"
 UNCOMPRESSED_MAGIC = "SIMISA@@@@@@@@@@JINX0s1t"
 CONFIG_DIR = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming")) / "ShapeFileManager3"
@@ -49,6 +49,15 @@ def app_dir() -> Path:
 def bundled_dir() -> Path:
     """Return the PyInstaller extraction folder, or the app folder when not bundled."""
     return Path(getattr(sys, "_MEIPASS", app_dir())).resolve()
+
+
+def app_icon_path() -> Path:
+    """Return the preferred application icon path for source and bundled runs."""
+    for base in (bundled_dir(), app_dir()):
+        candidate = base / "assets" / "SFM3.ico"
+        if candidate.exists():
+            return candidate
+    return app_dir() / "assets" / "SFM3.ico"
 
 
 @dataclass
@@ -98,7 +107,7 @@ def is_compressed_shape(path: Path) -> bool:
         return False
     # The original HTA opened files as Unicode and treated 18771/21321 as
     # compressed markers.  Little-endian bytes 'SI' produce 18771, which is
-    # how binary MSTS compressed files in this folder identify here.
+    # how binary Open Rails compressed files in this folder identify here.
     if len(data) >= 2:
         val = int.from_bytes(data[:2], "little")
         if val in (18771, 21321):
@@ -395,6 +404,10 @@ class SFMApp:
     def __init__(self, root: Tk) -> None:
         self.root = root
         root.title(f"{APP_NAME} {APP_VERSION}")
+        try:
+            root.iconbitmap(default=str(app_icon_path()))
+        except Exception:
+            pass
         root.geometry("1000x650")
         self.config = self.load_config()
         self.current_dir = Path(self.config.get("settings", "start_dir", fallback=os.getcwd()))
@@ -403,7 +416,11 @@ class SFMApp:
         self.limit_file_list = BooleanVar(value=self.config.getboolean("settings", "limit_file_list", fallback=True))
         self.orzip_cmd = StringVar(value=self.resolve_orzip_cmd(self.config.get("settings", "orzip_cmd", fallback="")))
         self.editor = StringVar(value=self.config.get("settings", "editor", fallback="notepad.exe"))
+        self.search_filter = StringVar(value="")
+        self.search_subfolders = BooleanVar(value=True)
+        self.path_by_item: dict[str, Path] = {}
         self.build_ui()
+        self.search_filter.trace_add("write", lambda *_: self.refresh_files())
         self.refresh()
 
     def load_config(self) -> configparser.ConfigParser:
@@ -439,7 +456,7 @@ class SFMApp:
 
     def build_ui(self) -> None:
         top = Frame(self.root); top.pack(fill=X, padx=6, pady=4)
-        Label(top, text=f"MSTS Shape File Manager {APP_VERSION}", font=("Segoe UI", 13, "bold")).pack(side=LEFT)
+        Label(top, text=f"{APP_NAME} {APP_VERSION}", font=("Segoe UI", 13, "bold")).pack(side=LEFT)
         Button(top, text="Instructions", command=self.show_help).pack(side=RIGHT, padx=2)
         Button(top, text="Settings", command=self.show_settings).pack(side=RIGHT, padx=2)
         Button(top, text="Refresh", command=self.refresh).pack(side=RIGHT, padx=2)
@@ -454,16 +471,25 @@ class SFMApp:
         right = Frame(main); right.pack(side=RIGHT, fill=BOTH, expand=True)
         Label(left, text="Current Directory").pack(anchor="w")
         self.dir_label = Label(left, text="", wraplength=300, justify=LEFT, bg="#eeeeee"); self.dir_label.pack(fill=X)
-        Button(left, text="Parent", command=lambda: self.move_to(self.current_dir.parent)).pack(fill=X, pady=3)
+        Button(left, text="Up One Folder", command=lambda: self.move_to(self.current_dir.parent)).pack(fill=X, pady=3)
         Label(left, text="Sub Directories").pack(anchor="w")
         self.dir_list = Listbox(left, width=42, height=28); self.dir_list.pack(fill=Y, expand=True)
         self.dir_list.bind("<Double-Button-1>", self.open_selected_dir)
+        search = Frame(right); search.pack(fill=X)
+        Label(search, text="Search Shape Files").pack(side=LEFT)
+        Entry(search, textvariable=self.search_filter, width=32).pack(side=LEFT, fill=X, expand=True, padx=6)
+        Checkbutton(search, text="Include Subfolders", variable=self.search_subfolders, command=self.refresh_files).pack(side=LEFT, padx=(0,6))
+        Button(search, text="Clear", command=self.clear_search).pack(side=RIGHT)
         Label(right, text="Shape Files").pack(anchor="w")
-        cols = ("name", "size", "status")
-        self.tree = ttk.Treeview(right, columns=cols, show="headings")
-        for c, w in [("name", 420), ("size", 90), ("status", 140)]:
+        cols = ("name", "folder", "size", "status")
+        tree_frame = Frame(right); tree_frame.pack(fill=BOTH, expand=True)
+        self.tree = ttk.Treeview(tree_frame, columns=cols, show="headings")
+        tree_scroll = ttk.Scrollbar(tree_frame, orient=VERTICAL, command=self.tree.yview)
+        self.tree.configure(yscrollcommand=tree_scroll.set)
+        for c, w in [("name", 340), ("folder", 230), ("size", 90), ("status", 140)]:
             self.tree.heading(c, text=c.title()); self.tree.column(c, width=w)
-        self.tree.pack(fill=BOTH, expand=True)
+        tree_scroll.pack(side=LEFT, fill=Y)
+        self.tree.pack(side=LEFT, fill=BOTH, expand=True)
         self.tree.bind("<Double-Button-1>", self.show_file_menu)
         self.menu = Menu(self.root, tearoff=0)
         self.tree.bind("<Button-3>", self.popup_file_menu)
@@ -478,6 +504,9 @@ class SFMApp:
         sel = self.dir_list.curselection()
         if sel: self.move_to(self.current_dir / self.dir_list.get(sel[0]).strip("\\/"))
 
+    def clear_search(self) -> None:
+        self.search_filter.set("")
+
     def refresh(self) -> None:
         self.dir_label.config(text=str(self.current_dir))
         self.dir_list.delete(0, END)
@@ -486,19 +515,37 @@ class SFMApp:
                 self.dir_list.insert(END, "\\" + p.name)
         except OSError as e:
             messagebox.showerror("Directory error", str(e)); return
+        self.refresh_files()
+
+    def refresh_files(self) -> None:
+        if not hasattr(self, "tree"):
+            return
+        query = self.search_filter.get().strip().lower()
+        recursive = bool(query and self.search_subfolders.get())
+        self.path_by_item = {}
         for item in self.tree.get_children(): self.tree.delete(item)
         limit = 600 if self.limit_file_list.get() else 999999
         count = 0
-        for p in sorted(self.current_dir.glob("*.s"), key=lambda p: p.name.upper()):
+        pattern = "**/*.s" if recursive else "*.s"
+        try:
+            paths = sorted(self.current_dir.glob(pattern), key=lambda p: str(p.relative_to(self.current_dir)).upper())
+        except OSError as e:
+            messagebox.showerror("Directory error", str(e)); return
+        for p in paths:
+            if query and query not in p.name.lower():
+                continue
             if count >= limit: break
             try: size = f"{p.stat().st_size // 1024} Kb"; status = shape_status(p)
             except OSError: continue
-            self.tree.insert("", END, values=(p.name, size, status)); count += 1
+            folder = "." if p.parent == self.current_dir else str(p.parent.relative_to(self.current_dir))
+            item = self.tree.insert("", END, values=(p.name, folder, size, status))
+            self.path_by_item[item] = p
+            count += 1
 
     def selected_path(self) -> Path | None:
         sel = self.tree.selection()
         if not sel: return None
-        return self.current_dir / self.tree.item(sel[0], "values")[0]
+        return self.path_by_item.get(sel[0], self.current_dir / self.tree.item(sel[0], "values")[0])
 
     def popup_file_menu(self, event) -> None:
         row = self.tree.identify_row(event.y)
@@ -645,13 +692,13 @@ class SFMApp:
     def show_help(self) -> None:
         win = Toplevel(self.root); win.title("Instructions")
         text = ScrolledText(win, width=100, height=35); text.pack(fill=BOTH, expand=True)
-        text.insert(END, """MSTS Shape File Manager 3.0
+        text.insert(END, """Open Rails Shape File Manager 3.0
 
 This is a Python/Tkinter continuation of the old SFM25 HTA utility.
 Version 3.0 replaces the obsolete HTA/ActiveX runtime and uses ORZIP for
 shape-file compression/uncompression.
 
-Use the folder list and drive buttons to navigate.  Double-click or right-click a .S shape file to show available actions.
+Use the folder list and drive buttons to navigate.  Type part of a filename in Search Shape Files to filter the current folder.  Enable Include Subfolders to search below the current folder too.  Double-click or right-click a .S shape file to show available actions.
 
 Compressed files:
   - Uncompress using ORZIP, if configured/found on PATH.
@@ -662,7 +709,7 @@ Uncompressed files:
   - Distance Levels, MIP Map Levels, Reverse, Rotate CW/CCW, Scale, Shift, Texture Modes.
   - Edit .S and .SD files with the configured Unicode editor.
 
-All geometry-changing operations make the same backup suffixes used by SFM25:
+All geometry-changing operations make the same backup suffixes inherited from earlier Shape File Manager versions:
 .PreScale, .PreShift, .PreReverse, .PreRotate, .PreDistance, .PreTexture, .PreMIPlevel.
 
 CAUTION: Shape files are complex.  Work on copies and keep secure backups.

@@ -22,6 +22,9 @@ warn-*.txt
 *.dylib
 *.exe
 
+# Generated document outputs
+docs/*.pdf
+
 # Keep intentional project/tool executables tracked if explicitly added
 !orzip.exe
 
