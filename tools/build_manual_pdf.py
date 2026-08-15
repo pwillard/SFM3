@@ -35,7 +35,7 @@ def footer(canvas, doc) -> None:
     canvas.saveState()
     canvas.setFont("Helvetica", 8)
     canvas.setFillColor(colors.grey)
-    canvas.drawString(0.75 * inch, 0.45 * inch, "Open Rails Shape File Manager 3.0 User Manual")
+    canvas.drawString(0.75 * inch, 0.45 * inch, "Open Rails Shape File Manager 3.0.2 User Manual")
     canvas.drawRightString(7.75 * inch, 0.45 * inch, f"Page {doc.page}")
     canvas.restoreState()
 
@@ -139,7 +139,7 @@ def main() -> int:
         leftMargin=0.75 * inch,
         topMargin=0.75 * inch,
         bottomMargin=0.75 * inch,
-        title="Open Rails Shape File Manager 3.0 User Manual",
+        title="Open Rails Shape File Manager 3.0.2 User Manual",
         author="SFM3 Project",
     )
     doc.build(build_story(markdown_text), onFirstPage=footer, onLaterPages=footer)

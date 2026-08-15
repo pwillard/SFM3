@@ -1,12 +1,12 @@
-# Open Rails Shape File Manager 3.0 User Manual
+# Open Rails Shape File Manager 3.0.2 User Manual
 
 Distribution kit manual for SFM3
 
 ## 1. Overview
 
-Open Rails Shape File Manager 3.0, also called SFM3, is a Windows desktop utility for working with Open Rails shape files.
+Open Rails Shape File Manager 3.0.2, also called SFM3, is a Windows desktop utility for working with Open Rails shape files.
 
-SFM3 is a Python/Tkinter continuation of the older SFM25 HTA utility. Version 3.0 replaces the obsolete HTA, ActiveX, and FFEDITC_UNICODE workflow with a normal desktop application and an ORZIP backend for shape-file compression and uncompression.
+SFM3 is a Python/Tkinter continuation of the older SFM25 HTA utility. Version 3.0.2 replaces the obsolete HTA, ActiveX, and FFEDITC_UNICODE workflow with a normal desktop application and an ORZIP backend for shape-file compression and uncompression.
 
 The application is intended for local/offline work on Open Rails `.S` shape files and their related `.SD` shape data files. It is a convenience tool for model builders who already understand the Open Rails file layout; it is not a replacement for a dedicated 3D modelling program.
 

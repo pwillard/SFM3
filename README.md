@@ -1,6 +1,6 @@
-# Open Rails Shape File Manager 3.0
+# Open Rails Shape File Manager 3.0.2
 
-Open Rails Shape File Manager 3.0 is a Python/Tkinter continuation of the older SFM25 HTA utility. It replaces the obsolete HTA/ActiveX and FFEDITC_UNICODE workflow with a normal desktop UI and an ORZIP backend for Open Rails shape-file compression tasks.
+Open Rails Shape File Manager 3.0.2 is a Python/Tkinter continuation of the older SFM25 HTA utility. It replaces the obsolete HTA/ActiveX and FFEDITC_UNICODE workflow with a normal desktop UI and an ORZIP backend for Open Rails shape-file compression tasks.
 
 ## Contents
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-"""Shape File Manager 3.0.
+"""Shape File Manager 3.0.2.
 
 This is a Python/Tkinter continuation of the old SFM25 HTA
-utility.  Version 3.0 replaces the obsolete HTA/ActiveX and FFEDITC_UNICODE
+utility.  Version 3.0.2 replaces the obsolete HTA/ActiveX and FFEDITC_UNICODE
 conversion dependencies with a normal desktop UI and ORZIP backend.
 """
 from __future__ import annotations
@@ -18,7 +18,7 @@ from tkinter import BOTH, END, LEFT, RIGHT, VERTICAL, X, Y, Button, Checkbutton,
 from tkinter.scrolledtext import ScrolledText
 
 APP_NAME = "Open Rails Shape File Manager"
-APP_VERSION = "3.0"
+APP_VERSION = "3.0.2"
 UNCOMPRESSED_MAGIC = "SIMISA@@@@@@@@@@JINX0s1t"
 CONFIG_DIR = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming")) / "ShapeFileManager3"
 CONFIG_FILE = CONFIG_DIR / "settings.ini"
@@ -626,24 +626,24 @@ class SFMApp:
         self.edit_file(sd)
 
     def scale_dialog(self, path: Path) -> None:
-        same = messagebox.askyesno("Scale", "Scale same in all directions?")
-        x = simpledialog.askfloat("Scale", "Scale Factor X", initialvalue=1.0, minvalue=0.000001)
+        same = messagebox.askyesno("Scale", "Scale same in all directions?", parent=self.root)
+        x = simpledialog.askfloat("Scale", "Scale Factor X", initialvalue=1.0, minvalue=0.000001, parent=self.root)
         if x is None: return
         if same:
             y = z = x
         else:
-            y = simpledialog.askfloat("Scale", "Scale Factor Y", initialvalue=x, minvalue=0.000001)
-            z = simpledialog.askfloat("Scale", "Scale Factor Z", initialvalue=x, minvalue=0.000001)
+            y = simpledialog.askfloat("Scale", "Scale Factor Y", initialvalue=x, minvalue=0.000001, parent=self.root)
+            z = simpledialog.askfloat("Scale", "Scale Factor Z", initialvalue=x, minvalue=0.000001, parent=self.root)
             if y is None or z is None: return
         self.config.set("settings", "scale_factor", str(x)); self.save_config()
         self.run_op(path, f"Scale by {x}, {y}, {z}", lambda: scale_shape(path, x, y, z, same))
 
     def shift_dialog(self, path: Path) -> None:
-        x = simpledialog.askfloat("Shift", "Shift X (Width)", initialvalue=0.0)
+        x = simpledialog.askfloat("Shift", "Shift X (Width)", initialvalue=0.0, parent=self.root)
         if x is None: return
-        y = simpledialog.askfloat("Shift", "Shift Y (Height)", initialvalue=0.0)
+        y = simpledialog.askfloat("Shift", "Shift Y (Height)", initialvalue=0.0, parent=self.root)
         if y is None: return
-        z = simpledialog.askfloat("Shift", "Shift Z (Length)", initialvalue=0.0)
+        z = simpledialog.askfloat("Shift", "Shift Z (Length)", initialvalue=0.0, parent=self.root)
         if z is None: return
         self.run_op(path, f"Shift by {x}, {y}, {z}", lambda: shift_shape(path, x, y, z))
 
@@ -692,10 +692,10 @@ class SFMApp:
     def show_help(self) -> None:
         win = Toplevel(self.root); win.title("Instructions")
         text = ScrolledText(win, width=100, height=35); text.pack(fill=BOTH, expand=True)
-        text.insert(END, """Open Rails Shape File Manager 3.0
+        text.insert(END, """Open Rails Shape File Manager 3.0.2
 
 This is a Python/Tkinter continuation of the old SFM25 HTA utility.
-Version 3.0 replaces the obsolete HTA/ActiveX runtime and uses ORZIP for
+Version 3.0.2 replaces the obsolete HTA/ActiveX runtime and uses ORZIP for
 shape-file compression/uncompression.
 
 Use the folder list and drive buttons to navigate.  Type part of a filename in Search Shape Files to filter the current folder.  Enable Include Subfolders to search below the current folder too.  Double-click or right-click a .S shape file to show available actions.
