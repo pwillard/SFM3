@@ -11,9 +11,12 @@ python -m PyInstaller ^
   --onefile ^
   --windowed ^
   --name SFM3 ^
-  --icon "assets\SFM3.ico" ^
+  --icon "assets\SFM3_RSS.ico" ^
   --add-binary "orzip.exe;." ^
   --add-data "assets\SFM3.ico;assets" ^
+  --add-data "assets\SFM3_icon.png;assets" ^
+  --add-data "assets\SFM3_RSS.ico;assets" ^
+  --add-data "assets\SFM3_RSS.png;assets" ^
   --distpath "%TMPDIST%" ^
   SFM30.py
 

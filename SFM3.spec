@@ -5,7 +5,7 @@ a = Analysis(
     ['SFM30.py'],
     pathex=[],
     binaries=[('orzip.exe', '.')],
-    datas=[('assets/SFM3.ico', 'assets')],
+    datas=[('assets/SFM3.ico', 'assets'), ('assets/SFM3_icon.png', 'assets'), ('assets/SFM3_RSS.ico', 'assets'), ('assets/SFM3_RSS.png', 'assets')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -35,5 +35,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['assets/SFM3.ico'],
+    icon=['assets/SFM3_RSS.ico'],
 )

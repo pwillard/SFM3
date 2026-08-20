@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-"""Shape File Manager 3.0.2.
+"""Shape File Manager 3.0.3.
 
 This is a Python/Tkinter continuation of the old SFM25 HTA
-utility.  Version 3.0.2 replaces the obsolete HTA/ActiveX and FFEDITC_UNICODE
+utility.  Version 3.0.3 replaces the obsolete HTA/ActiveX and FFEDITC_UNICODE
 conversion dependencies with a normal desktop UI and ORZIP backend.
 """
 from __future__ import annotations
@@ -14,14 +14,27 @@ import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from tkinter import BOTH, END, LEFT, RIGHT, VERTICAL, X, Y, Button, Checkbutton, Entry, Frame, Label, LabelFrame, Listbox, Menu, StringVar, Tk, Toplevel, BooleanVar, messagebox, simpledialog, ttk
+from tkinter import BOTH, END, LEFT, RIGHT, VERTICAL, X, Y, Button, Checkbutton, Entry, Frame, Label, LabelFrame, Listbox, Menu, PhotoImage, StringVar, Tk, Toplevel, BooleanVar, messagebox, simpledialog, ttk
 from tkinter.scrolledtext import ScrolledText
 
 APP_NAME = "Open Rails Shape File Manager"
-APP_VERSION = "3.0.2"
+APP_VERSION = "3.0.3"
 UNCOMPRESSED_MAGIC = "SIMISA@@@@@@@@@@JINX0s1t"
 CONFIG_DIR = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming")) / "ShapeFileManager3"
 CONFIG_FILE = CONFIG_DIR / "settings.ini"
+
+# Visual theme shared with the recently completed Open Rails Shape Packer.
+BG = "#f4f2ed"
+PANEL = "#f8f7f3"
+BANNER = "#eee9e1"
+BORDER = "#8b6f5b"
+GREEN = "#dcefe2"
+READY = "#fff0c7"
+LOG_BG = "#202020"
+LOG_FG = "#e8e8e8"
+ACCENT = "#7a4634"
+TEXT = "#2e2e2e"
+MUTED = "#7b6b5c"
 
 TEXTURE_MODES = [
     ("Normal", "-5"),
@@ -54,10 +67,27 @@ def bundled_dir() -> Path:
 def app_icon_path() -> Path:
     """Return the preferred application icon path for source and bundled runs."""
     for base in (bundled_dir(), app_dir()):
-        candidate = base / "assets" / "SFM3.ico"
-        if candidate.exists():
-            return candidate
-    return app_dir() / "assets" / "SFM3.ico"
+        for relative in (
+            Path("assets") / "SFM3_RSS.ico",
+            Path("assets") / "SFM3.ico",
+        ):
+            candidate = base / relative
+            if candidate.exists():
+                return candidate
+    return app_dir() / "assets" / "SFM3_RSS.ico"
+
+
+def banner_image_path() -> Path:
+    """Return the RSS-style banner image used by the Shape Packer UI."""
+    for base in (bundled_dir(), app_dir()):
+        for relative in (
+            Path("assets") / "SFM3_RSS.png",
+            Path("assets") / "SFM3_icon.png",
+        ):
+            candidate = base / relative
+            if candidate.exists():
+                return candidate
+    return app_dir() / "assets" / "SFM3_RSS.png"
 
 
 @dataclass
@@ -404,11 +434,13 @@ class SFMApp:
     def __init__(self, root: Tk) -> None:
         self.root = root
         root.title(f"{APP_NAME} {APP_VERSION}")
+        self.apply_default_window_size()
+        root.configure(bg=BG)
         try:
             root.iconbitmap(default=str(app_icon_path()))
         except Exception:
             pass
-        root.geometry("1000x650")
+        self.configure_style()
         self.config = self.load_config()
         self.current_dir = Path(self.config.get("settings", "start_dir", fallback=os.getcwd()))
         if not self.current_dir.exists(): self.current_dir = Path(os.getcwd())
@@ -454,45 +486,124 @@ class SFMApp:
             return cmd
         return self.default_orzip_cmd()
 
+    def apply_default_window_size(self) -> None:
+        """Choose a startup size that matches the Shape Packer family."""
+        screen_w = self.root.winfo_screenwidth()
+        screen_h = self.root.winfo_screenheight()
+        width = min(1040, max(900, screen_w - 80))
+        height = min(760, max(650, screen_h - 80))
+        x = max(0, (screen_w - width) // 2)
+        y = max(0, (screen_h - height) // 3)
+        self.root.geometry(f"{width}x{height}+{x}+{y}")
+        self.root.minsize(860, 620)
+
+    def configure_style(self) -> None:
+        style = ttk.Style(self.root)
+        try:
+            style.theme_use("clam")
+        except Exception:
+            pass
+        style.configure("Treeview", background="white", fieldbackground="white", rowheight=23, font=("Segoe UI", 9))
+        style.configure("Treeview.Heading", font=("Segoe UI", 9, "bold"), background="#e9e4dc", foreground=TEXT)
+        style.map("Treeview", background=[("selected", "#cfe3d6")], foreground=[("selected", "black")])
+
+    def themed_panel(self, parent: Frame, title: str, **pack_kwargs) -> LabelFrame:
+        lf = LabelFrame(parent, text=title, bg=PANEL, fg="#7b4f3f", padx=8, pady=8)
+        lf.pack(**({"fill": BOTH, "expand": False, "pady": (0, 10)} | pack_kwargs))
+        return lf
+
+    def themed_button(self, parent, text: str, command=None, **kwargs) -> Button:
+        return Button(parent, text=text, command=command, bg=GREEN, activebackground="#cfe3d6", **kwargs)
+
     def build_ui(self) -> None:
-        top = Frame(self.root); top.pack(fill=X, padx=6, pady=4)
-        Label(top, text=f"{APP_NAME} {APP_VERSION}", font=("Segoe UI", 13, "bold")).pack(side=LEFT)
-        Button(top, text="Instructions", command=self.show_help).pack(side=RIGHT, padx=2)
-        Button(top, text="Settings", command=self.show_settings).pack(side=RIGHT, padx=2)
-        Button(top, text="Refresh", command=self.refresh).pack(side=RIGHT, padx=2)
-        drives = Frame(self.root); drives.pack(fill=X, padx=6)
-        Label(drives, text="Drives:").pack(side=LEFT)
-        if os.name == "nt":
-            for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
-                p = Path(f"{letter}:/")
-                if p.exists(): Button(drives, text=f"{letter}:", command=lambda p=p: self.move_to(p)).pack(side=LEFT, padx=1)
-        main = Frame(self.root); main.pack(fill=BOTH, expand=True, padx=6, pady=6)
-        left = Frame(main); left.pack(side=LEFT, fill=Y, padx=(0,6))
-        right = Frame(main); right.pack(side=RIGHT, fill=BOTH, expand=True)
-        Label(left, text="Current Directory").pack(anchor="w")
-        self.dir_label = Label(left, text="", wraplength=300, justify=LEFT, bg="#eeeeee"); self.dir_label.pack(fill=X)
-        Button(left, text="Up One Folder", command=lambda: self.move_to(self.current_dir.parent)).pack(fill=X, pady=3)
-        Label(left, text="Sub Directories").pack(anchor="w")
-        self.dir_list = Listbox(left, width=42, height=28); self.dir_list.pack(fill=Y, expand=True)
+        self.build_banner()
+        self.build_drives_row()
+
+        main = Frame(self.root, bg=BG)
+        main.pack(fill=BOTH, expand=True, padx=14, pady=(4, 8))
+        left = Frame(main, bg=BG)
+        left.pack(side=LEFT, fill=Y, padx=(0, 6))
+        right = Frame(main, bg=BG)
+        right.pack(side=RIGHT, fill=BOTH, expand=True, padx=(6, 0))
+
+        nav = self.themed_panel(left, "Current Directory", fill=BOTH, expand=True)
+        self.dir_label = Label(nav, text="", wraplength=300, justify=LEFT, bg=READY, fg=TEXT, relief="groove", padx=6, pady=4)
+        self.dir_label.pack(fill=X, pady=(0, 6))
+        self.themed_button(nav, text="Up One Folder", command=lambda: self.move_to(self.current_dir.parent)).pack(fill=X, pady=(0, 8))
+        Label(nav, text="Sub Directories", bg=PANEL, fg=MUTED, font=("Segoe UI", 9, "bold")).pack(anchor="w")
+        list_frame = Frame(nav, bg=PANEL)
+        list_frame.pack(fill=BOTH, expand=True)
+        self.dir_list = Listbox(list_frame, width=34, height=24, bg="white", selectbackground="#cfe3d6", selectforeground="black", relief="groove")
+        dir_scroll = ttk.Scrollbar(list_frame, orient=VERTICAL, command=self.dir_list.yview)
+        self.dir_list.configure(yscrollcommand=dir_scroll.set)
+        self.dir_list.pack(side=LEFT, fill=BOTH, expand=True)
+        dir_scroll.pack(side=RIGHT, fill=Y)
         self.dir_list.bind("<Double-Button-1>", self.open_selected_dir)
-        search = Frame(right); search.pack(fill=X)
-        Label(search, text="Search Shape Files").pack(side=LEFT)
-        Entry(search, textvariable=self.search_filter, width=32).pack(side=LEFT, fill=X, expand=True, padx=6)
-        Checkbutton(search, text="Include Subfolders", variable=self.search_subfolders, command=self.refresh_files).pack(side=LEFT, padx=(0,6))
-        Button(search, text="Clear", command=self.clear_search).pack(side=RIGHT)
-        Label(right, text="Shape Files").pack(anchor="w")
+
+        files = self.themed_panel(right, "Shape Files", fill=BOTH, expand=True)
+        search = Frame(files, bg=PANEL)
+        search.pack(fill=X, pady=(0, 8))
+        Label(search, text="Search:", bg=PANEL).pack(side=LEFT)
+        Entry(search, textvariable=self.search_filter, width=32).pack(side=LEFT, fill=X, expand=True, padx=(6, 6))
+        Checkbutton(search, text="Include subfolders", variable=self.search_subfolders, command=self.refresh_files, bg=PANEL).pack(side=LEFT, padx=(0, 6))
+        self.themed_button(search, text="Clear", command=self.clear_search).pack(side=RIGHT)
+        hint = Label(files, text="Double-click or right-click a shape file to open SFM actions.", bg=PANEL, fg=MUTED)
+        hint.pack(anchor="w", pady=(0, 4))
         cols = ("name", "folder", "size", "status")
-        tree_frame = Frame(right); tree_frame.pack(fill=BOTH, expand=True)
+        tree_frame = Frame(files, bg=PANEL)
+        tree_frame.pack(fill=BOTH, expand=True)
         self.tree = ttk.Treeview(tree_frame, columns=cols, show="headings")
         tree_scroll = ttk.Scrollbar(tree_frame, orient=VERTICAL, command=self.tree.yview)
         self.tree.configure(yscrollcommand=tree_scroll.set)
-        for c, w in [("name", 340), ("folder", 230), ("size", 90), ("status", 140)]:
-            self.tree.heading(c, text=c.title()); self.tree.column(c, width=w)
-        tree_scroll.pack(side=LEFT, fill=Y)
+        for c, title, w in [("name", "File", 340), ("folder", "Folder", 230), ("size", "Size", 90), ("status", "Status", 140)]:
+            self.tree.heading(c, text=title)
+            self.tree.column(c, width=w, anchor="w")
         self.tree.pack(side=LEFT, fill=BOTH, expand=True)
+        tree_scroll.pack(side=RIGHT, fill=Y)
         self.tree.bind("<Double-Button-1>", self.show_file_menu)
         self.menu = Menu(self.root, tearoff=0)
         self.tree.bind("<Button-3>", self.popup_file_menu)
+
+        self.build_footer_buttons()
+
+    def build_banner(self) -> None:
+        banner = Frame(self.root, bg=BANNER, highlightbackground=BORDER, highlightthickness=1)
+        banner.pack(fill=X, padx=14, pady=(10, 8), ipady=8)
+        logo_path = banner_image_path()
+        try:
+            self.banner_image = PhotoImage(file=str(logo_path)).subsample(4, 4)
+            logo = Label(banner, image=self.banner_image, bg=BANNER)
+        except Exception:
+            self.banner_image = None
+            logo = Label(banner, text="RSS", bg="#3b2a2a", fg="#c0925b", font=("Segoe UI", 18, "bold"), width=5)
+        logo.pack(side=LEFT, padx=(18, 10), pady=6)
+        title = Frame(banner, bg=BANNER)
+        title.pack(side=LEFT, fill=X, expand=True)
+        Label(title, text=APP_NAME, bg=BANNER, fg=TEXT, font=("Segoe UI", 24, "bold")).pack(anchor="w")
+        Label(title, text="SFM SHAPE EDITING AND ORZIP WORKFLOW", bg=BANNER, fg=ACCENT, font=("Segoe UI", 9, "bold")).pack(anchor="w")
+        Label(banner, text=f"v{APP_VERSION}", bg="#efefef", fg="#555", relief="groove", padx=8, pady=3).pack(side=RIGHT, padx=14)
+
+    def build_drives_row(self) -> None:
+        drives = Frame(self.root, bg=BG)
+        drives.pack(fill=X, padx=18, pady=(0, 6))
+        Label(drives, text="Drives:", bg=BG).pack(side=LEFT)
+        found = False
+        if os.name == "nt":
+            for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
+                path = Path(f"{letter}:/")
+                if path.exists():
+                    found = True
+                    self.themed_button(drives, text=f"{letter}:", command=lambda p=path: self.move_to(p), width=4).pack(side=LEFT, padx=(4, 0))
+        if not found:
+            Label(drives, text="Use the folder list below to navigate.", bg=BG, fg=MUTED).pack(side=LEFT, padx=(8, 0))
+
+    def build_footer_buttons(self) -> None:
+        row = Frame(self.root, bg=BG)
+        row.pack(fill=X, padx=18, pady=(0, 10))
+        self.themed_button(row, text="Refresh", command=self.refresh, width=10).pack(side=LEFT, padx=(0, 8))
+        self.themed_button(row, text="Settings", command=self.show_settings, width=10).pack(side=LEFT, padx=(0, 8))
+        self.themed_button(row, text="Instructions", command=self.show_help, width=12).pack(side=LEFT, padx=(0, 8))
+        Label(row, text="Open Rails shape-file management front-end", bg=BG, fg=MUTED).pack(side=RIGHT)
 
     def move_to(self, path: Path) -> None:
         if path.exists() and path.is_dir():
@@ -692,10 +803,10 @@ class SFMApp:
     def show_help(self) -> None:
         win = Toplevel(self.root); win.title("Instructions")
         text = ScrolledText(win, width=100, height=35); text.pack(fill=BOTH, expand=True)
-        text.insert(END, """Open Rails Shape File Manager 3.0.2
+        text.insert(END, """Open Rails Shape File Manager 3.0.3
 
 This is a Python/Tkinter continuation of the old SFM25 HTA utility.
-Version 3.0.2 replaces the obsolete HTA/ActiveX runtime and uses ORZIP for
+Version 3.0.3 replaces the obsolete HTA/ActiveX runtime and uses ORZIP for
 shape-file compression/uncompression.
 
 Use the folder list and drive buttons to navigate.  Type part of a filename in Search Shape Files to filter the current folder.  Enable Include Subfolders to search below the current folder too.  Double-click or right-click a .S shape file to show available actions.
