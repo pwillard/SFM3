@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-"""Shape File Manager 3.0.3.
+"""Shape File Manager 3.0.4.
 
 This is a Python/Tkinter continuation of the old SFM25 HTA
-utility.  Version 3.0.3 replaces the obsolete HTA/ActiveX and FFEDITC_UNICODE
+utility.  Version 3.0.4 replaces the obsolete HTA/ActiveX and FFEDITC_UNICODE
 conversion dependencies with a normal desktop UI and ORZIP backend.
 """
 from __future__ import annotations
@@ -18,7 +18,7 @@ from tkinter import BOTH, END, LEFT, RIGHT, VERTICAL, X, Y, Button, Checkbutton,
 from tkinter.scrolledtext import ScrolledText
 
 APP_NAME = "Open Rails Shape File Manager"
-APP_VERSION = "3.0.3"
+APP_VERSION = "3.0.4"
 UNCOMPRESSED_MAGIC = "SIMISA@@@@@@@@@@JINX0s1t"
 CONFIG_DIR = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming")) / "ShapeFileManager3"
 CONFIG_FILE = CONFIG_DIR / "settings.ini"
@@ -803,10 +803,10 @@ class SFMApp:
     def show_help(self) -> None:
         win = Toplevel(self.root); win.title("Instructions")
         text = ScrolledText(win, width=100, height=35); text.pack(fill=BOTH, expand=True)
-        text.insert(END, """Open Rails Shape File Manager 3.0.3
+        text.insert(END, """Open Rails Shape File Manager 3.0.4
 
 This is a Python/Tkinter continuation of the old SFM25 HTA utility.
-Version 3.0.3 replaces the obsolete HTA/ActiveX runtime and uses ORZIP for
+Version 3.0.4 replaces the obsolete HTA/ActiveX runtime and uses ORZIP for
 shape-file compression/uncompression.
 
 Use the folder list and drive buttons to navigate.  Type part of a filename in Search Shape Files to filter the current folder.  Enable Include Subfolders to search below the current folder too.  Double-click or right-click a .S shape file to show available actions.
